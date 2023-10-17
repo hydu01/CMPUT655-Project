@@ -121,8 +121,14 @@ learning algorithms.
 \end{abstract}
 
 \section{Introduction}
+Tradeoff between exploration and exploitation, is an eternal problem that any RL algorithms face.
+Since this challenge arises everywhere, the numerous amount of research centered to exploration/exploitation problem are published.
+Among those approaches, one of the most fundamental and scalable approach is an optimistic initialization of the value functions.
+By simply setting the initial values greater than the reward maxima, one can enforce the agents to explore every state(-action) pair at least once. 
+Although this simple technique is proven to provide the tremendous advantages in tabular context, its effect on deep nonlinear function approximation is yet to be discovered.
+This project aims to 1. provide a basic method to optimistically initialize the deep network, 2. simple fix on the implementation so that optimistic values remain effective after few gradient steps and 3. empirical analysis.
 
-\subsection{Submitting Papers}
+% \subsection{Submitting Papers}
 
 %Authors may submit to ICML substantially different versions of journal papers
 %that are currently under review by the journal, but not yet accepted
