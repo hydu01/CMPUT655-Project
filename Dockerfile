@@ -7,7 +7,7 @@ RUN mkdir -p $WORKDIR && \
 	chmod 777 $WORKDIR
 
 WORKDIR $WORKDIR
-	
+
 RUN apt-get update && \
 	apt-get -y install curl python3-pip git build-essential python-opengl software-properties-common && \
 	add-apt-repository -y ppa:deadsnakes/ppa && \
@@ -24,4 +24,4 @@ RUN poetry install
 # ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 ENTRYPOINT ["/bin/bash"]
 
-COPY ./src /src
+COPY ./codes $WORKDIR/codes
