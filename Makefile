@@ -1,7 +1,7 @@
 .DEFAULT_GOAL = run
 
 build:
-		docker build . -t optimistic_init
+	@bash scripts/build_container.sh
 
 run:
-		docker run --rm -itd optimistic_init
+	@bash scripts/run_container.sh

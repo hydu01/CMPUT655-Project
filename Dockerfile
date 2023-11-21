@@ -24,4 +24,4 @@ RUN poetry install
 # ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 ENTRYPOINT ["/bin/bash"]
 
-COPY ./codes $WORKDIR/codes
+# COPY ./codes $WORKDIR/codes
