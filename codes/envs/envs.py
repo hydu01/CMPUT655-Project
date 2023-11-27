@@ -20,5 +20,5 @@ def make_env(
     return env
 
 def normalize_reward():
-    #TODO: Need to be implemented
+    #TODO: To be implemented
     return None

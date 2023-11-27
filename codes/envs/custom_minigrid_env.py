@@ -8,7 +8,7 @@ class CustomMinigridEnv():
         self.left = 0
         self.right = 1
         self.forward = 2
-        self.backward = 7
+        self.backward = 3
 
     def step(self, action):
         """Only count the number of steps for the forward action"""
