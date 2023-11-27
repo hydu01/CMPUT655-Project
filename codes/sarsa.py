@@ -1,4 +1,3 @@
-from algorithms.algorithms import get_algorithm
 from envs.envs import make_env
 from nns.nns import make_model
 from utils import seed_everything
@@ -27,10 +26,5 @@ if __name__ == "__main__":
     
     # Create the necessary components
     env = make_env(env_name, normalize_reward=normalize_reward)
-    if use_nn:
-        mdoel = make_model()
-    
-    algo = get_algorithm()
-    
-    # Train everything
-    algo.train()
+        
+    # Train
