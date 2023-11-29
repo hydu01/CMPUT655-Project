@@ -3,12 +3,15 @@
 ## Prerequisites
 - Python >= 3.9.0,<3.11
 - Poetry 1.5.0+
-  
+
+## How to build a development environment
+#### Poetry (Mandatory)
 To locally build an environment, run a following command:
 ```
 poetry install
 ```
 
+#### Docker (Optional)
 To build a docker image and container, run following commands:
 ```
 make build
