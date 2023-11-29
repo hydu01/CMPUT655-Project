@@ -1,1 +1,1 @@
-from .envs.envs import make_env
+from .envs import make_env

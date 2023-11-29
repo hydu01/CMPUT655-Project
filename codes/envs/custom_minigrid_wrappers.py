@@ -81,13 +81,10 @@ class TraditionalFlattenObservation(gym.ObservationWrapper):
     def __init__(self, env: Env):
         super().__init__(env)
 
-        imgSpace = env.observation_space.spaces["image"]
-        imgSize = np.prod(imgSpace.shape)
-
         self.observation_space = spaces.Box(
             low=0,
             high=255,
-            shape=(imgSize,),
+            shape=((env.unwrapped.width-2) * (env.unwrapped.height-2) * 3,),
             dtype="uint8",
         )
 
@@ -97,6 +94,7 @@ class TraditionalFlattenObservation(gym.ObservationWrapper):
         full_grid[unwrapped.agent_pos[0]][unwrapped.agent_pos[1]] = np.array([
             OBJECT_TO_IDX["agent"],
             COLOR_TO_IDX["red"],
+            unwrapped.agent_dir,
         ])
         full_grid = full_grid[1:-1, 1:-1]
         
