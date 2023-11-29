@@ -304,3 +304,7 @@ TSWLatexianTemp*
 
 # Environment things
 *.venv
+
+# Additional python related files/folders
+__pycache__/
+.ipynb_checkpoints/
