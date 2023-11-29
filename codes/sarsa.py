@@ -1,6 +1,6 @@
-from envs.envs import make_env
-from nns.nns import make_model
-from utils import seed_everything
+from .envs.envs import make_env
+from .nns.nns import make_model
+from .utils import seed_everything
 
 
 if __name__ == "__main__":
