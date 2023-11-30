@@ -84,12 +84,12 @@ class TraditionalFlattenObservation(gym.ObservationWrapper):
         self.observation_space = spaces.Box(
             low=0,
             high=255,
-            shape=((env.unwrapped.width-2) * (env.unwrapped.height-2) * 3,),
+            shape=((self.unwrapped.width-2) * (self.unwrapped.height-2) * 3,),
             dtype="uint8",
         )
 
     def observation(self, observation):
-        unwrapped = self.env.unwrapped
+        unwrapped = self.unwrapped
         full_grid = unwrapped.grid.encode()
         full_grid[unwrapped.agent_pos[0]][unwrapped.agent_pos[1]] = np.array([
             OBJECT_TO_IDX["agent"],
