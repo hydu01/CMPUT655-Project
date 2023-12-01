@@ -4,10 +4,12 @@ from minigrid.core.constants import COLOR_TO_IDX, OBJECT_TO_IDX
 from gymnasium import Env, spaces
 import gymnasium as gym
 import numpy as np
+from typing import Any, Optional
 
 
-class CustomMinigridEnv():
+class CustomMinigridEnv(Env):
     def __init__(self, base_env: Env):
+        super().__init__()
         self.base_env = base_env
         
         # Action indices
@@ -24,10 +26,11 @@ class CustomMinigridEnv():
     def reset(
         self,
         *,
-        seed: int | None = None,
-        options: dict[str, Any] | None = None
+        seed: Optional[int] = None,
+        options: Optional[dict[str, Any]] = None
     ):
         return self.base_env.reset(seed=seed, options=options)
+
         
 
     def step(self, action):
@@ -91,16 +94,39 @@ class TraditionalFlattenObservation(gym.ObservationWrapper):
     def observation(self, observation):
         unwrapped = self.unwrapped
         full_grid = unwrapped.grid.encode()
+        print(unwrapped.agent_pos)
         full_grid[unwrapped.agent_pos[0]][unwrapped.agent_pos[1]] = np.array([
             OBJECT_TO_IDX["agent"],
             COLOR_TO_IDX["red"],
             unwrapped.agent_dir,
         ])
-        full_grid = full_grid[1:-1, 1:-1]
         
+        full_grid = full_grid[1:-1, 1:-1]
         full_grid = full_grid.ravel()
         return full_grid
 
+class TabularObservation(gym.ObservationWrapper):
+    def __init__(self, env: Env):
+        super().__init__(env)
+    
+    def observation(self, observation):
+        unwrapped = self.unwrapped
+        return unwrapped.agent_pos
+    
+class NegativeRewardOnLava(gym.RewardWrapper):
+    def __init__(self, env: Env, custom_reward: float = -1., gamma: float = 1.):
+        super().__init__(env)
+        self.custom_reward = custom_reward
+        self.gamma = gamma
+
+    def reward(self, reward: float) -> float:
+        # Condtiions rendered from https://github.com/Farama-Foundation/Minigrid/blob/4373191abc93d5df4054d7185692bd2951b7682b/minigrid/minigrid_env.py#L520
+        unwrapped = self.env.unwrapped
+        fwd_cell = unwrapped.grid.get(*unwrapped.front_pos)
+        if fwd_cell is not None and fwd_cell.type == "lava":
+            return self.custom_reward + self.gamma - 1 # normalize
+        else:
+            return reward + self.gamma - 1. # normalize
 
 class NormalizeReward(gym.RewardWrapper):
     def __init__(self, env: Env, mx_reward: float = 1., gamma: float = 1.):
