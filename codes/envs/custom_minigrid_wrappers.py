@@ -94,7 +94,6 @@ class TraditionalFlattenObservation(gym.ObservationWrapper):
     def observation(self, observation):
         unwrapped = self.unwrapped
         full_grid = unwrapped.grid.encode()
-        print(unwrapped.agent_pos)
         full_grid[unwrapped.agent_pos[0]][unwrapped.agent_pos[1]] = np.array([
             OBJECT_TO_IDX["agent"],
             COLOR_TO_IDX["red"],
@@ -114,19 +113,18 @@ class TabularObservation(gym.ObservationWrapper):
         return unwrapped.agent_pos
     
 class NegativeRewardOnLava(gym.RewardWrapper):
-    def __init__(self, env: Env, custom_reward: float = -1., gamma: float = 1.):
+    def __init__(self, env: Env, custom_reward: float = -1.):
         super().__init__(env)
         self.custom_reward = custom_reward
-        self.gamma = gamma
 
     def reward(self, reward: float) -> float:
         # Condtiions rendered from https://github.com/Farama-Foundation/Minigrid/blob/4373191abc93d5df4054d7185692bd2951b7682b/minigrid/minigrid_env.py#L520
         unwrapped = self.env.unwrapped
         fwd_cell = unwrapped.grid.get(*unwrapped.front_pos)
         if fwd_cell is not None and fwd_cell.type == "lava":
-            return self.custom_reward + self.gamma - 1 # normalize
+            return self.custom_reward
         else:
-            return reward + self.gamma - 1. # normalize
+            return reward
 
 class NormalizeReward(gym.RewardWrapper):
     def __init__(self, env: Env, mx_reward: float = 1., gamma: float = 1.):

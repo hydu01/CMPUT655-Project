@@ -27,7 +27,7 @@ def make_env(
         base_env = TabularObservation(base_env)
     if penalize_death:
         base_env = NegativeRewardOnLava(base_env)
-    elif normalize_reward:
+    if normalize_reward:
         base_env = NormalizeReward(base_env, mx_reward=mx_reward, gamma=gamma)
 
     # Wrap with custom action sequences

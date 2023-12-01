@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 class Agent():
     def __init__(self):
         self.q_values = {} # dictionary of q_values
-        self.epsilon = 0.1
+        self.epsilon = 0.01
     def set_q_value(self, state, action, q_value):
         q_values_array = self.q_values.get(state, [0,0,0,0])
         q_values_array[action] = q_value
@@ -39,9 +39,9 @@ def experiment_run(env_names):
         
         # Algorithm configs
         algo_name = "sarsa"
-        num_episodes = 100
-        LEARNING_RATE = 0.001
-        GAMMA = 0.9
+        num_episodes = 1000
+        LEARNING_RATE = 0.01
+        GAMMA = 0.99
 
         #------------ Training ------------#
         # Set seed for everything
@@ -85,7 +85,7 @@ def experiment_run(env_names):
         print(f"Completed training on {env_name}")
         plt.figure()
         plt.plot(avg_returns)
-        plt.savefig(f"returns-{env_name}-\
+        plt.savefig(f"../results/returns-{env_name}-\
             {seed}-{'normalized' if normalize_reward else 'raw'}")    
     
 
