@@ -22,19 +22,16 @@ if __name__ == "__main__":
     # Environment configs
     env_name = "MiniGrid-DistShift1-v0"
     base_dir = f"./results/semi_grad_sarsa/{env_name}"
-    if not os.path.isdir(base_dir):
-        os.mkdir(base_dir)
-    normalize_reward = True
+    normalize_reward = False
     gamma = 0.9
-    eps = 0.1
     
     # NN configs
-    model_name = "reward_normalization"
+    model_name = "sample"
     weight_path = f"{base_dir}/{model_name}.pth"
     lr = 1e-4
     
     # Experiment configurations
-    timestep_limit = 100000 if debug else 500_000
+    timestep_limit = 1000 if debug else 500_000
 
     #------------ Training ------------#
     # Set seed for everything
@@ -56,6 +53,9 @@ if __name__ == "__main__":
         nn.Linear(100, 4)
     )
 
+    q_function.load_state_dict(torch.load(weight_path))
+    q_function.eval()
+
     optimizer = optim.Adam(q_function.parameters(), lr=lr)
 
     # Training algorithm
@@ -71,11 +71,7 @@ if __name__ == "__main__":
         
         # Take action based on the current q_function
         with torch.no_grad():
-            # actions.append(q_function(obs))
-            if not normalize_reward and np.random.rand() < eps:
-                action = np.random.randint(0, 4)
-            else:
-                action = q_function(obs).argmax().item()
+            action = q_function(obs).argmax().item()
             
         is_done = False
         st_time = time.time()
@@ -91,37 +87,21 @@ if __name__ == "__main__":
             # Update flag for the termination
             is_done = term or trunc
             r += reward
-            if term:
-                print(reward)
 
             nxt_action = None
             with torch.no_grad():
-                # Compute base delta
-                q_val = q_function(obs)[action]
-                delta = reward - q_val
-                
                 if not is_done:
                     # Will follow the greedy policy
-                    if not normalize_reward and np.random.rand() < eps:
-                        nxt_action = np.random.randint(0, 4)
-                    else:
-                        q_pred_nxt = q_function(nxt_obs)
-                        nxt_action = q_pred_nxt.argmax().item()
-                    delta += gamma * q_pred_nxt[nxt_action]
-                
-            # Update weights
-            loss = -delta * q_function(obs)[action]
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+                    q_pred_nxt = q_function(nxt_obs)
+                    nxt_action = q_pred_nxt.argmax().item()
 
             obs = nxt_obs
             action = nxt_action
 
             timestep_count += 1
         
-        if ep_count % 1000 == 0:
-            print(f"Episode {ep_count} is done in {timestep_count - prev_count} steps, {time.time() - st_time} secs")
+        # if ep_count % 10 == 0:
+        #     print(f"Episode {ep_count} is done in {timestep_count - prev_count} steps, {time.time() - st_time} secs")
         ep_count += 1
 
         r /= (timestep_count - prev_count)
@@ -130,6 +110,6 @@ if __name__ == "__main__":
         if timestep_count >= timestep_limit:
             break
     
-    # Save things needed
-    torch.save(q_function.state_dict(), weight_path)
-    np.save(f"{base_dir}/avg_rewards_normalized.npy", avg_rewards)
+    # Plot everything
+    plt.plot(avg_rewards)
+    plt.savefig(f"{base_dir}/avg_rewards_eval.png")
