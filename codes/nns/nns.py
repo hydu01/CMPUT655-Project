@@ -38,8 +38,13 @@ class MLP(nn.Module):
         layers.append(nn.Linear(dims[-2], dims[-1]))
         if last_layer_bias is not None:
                 with torch.no_grad():
-                    layers[-1].bias.fill_(last_layer_bias)
+                    layers[-1].bias.uniform_(last_layer_bias, last_layer_bias+1)
         return nn.Sequential(*layers)
+    
+    def set_last_layer_bias(self, last_layer_bias):
+        with torch.no_grad():
+            self.model[-1].bias.uniform_(last_layer_bias, last_layer_bias+1)
+        return
     
     def forward(self, x):
         return self.model(x)
@@ -65,8 +70,13 @@ class EMLP(nn.Module):
             if last_layer_bias == "elephant":
                 layers[-1].bias.uniform_(-1.0, 1.0)
             elif last_layer_bias is not None:
-                layers[-1].bias.fill_(last_layer_bias)
+                layers[-1].bias.uniform_(last_layer_bias, last_layer_bias+1)
         return nn.Sequential(*layers)
+    
+    def set_last_layer_bias(self, last_layer_bias):
+        with torch.no_grad():
+            self.model[-1].bias.uniform_(last_layer_bias, last_layer_bias+1)
+        return
     
     def forward(self, x):
         return self.model(x)
@@ -110,8 +120,11 @@ class CNN(nn.Module):
         layers.append(nn.Linear(hidden_dims[-2], hidden_dims[-1]))
         if last_layer_bias is not None:
                 with torch.no_grad():
-                    layers[-1].bias.fill_(last_layer_bias)
+                    layers[-1].bias.uniform_(last_layer_bias)
         return nn.Sequential(*layers)
+    
+    def set_last_layer_bias(self, last_layer_bias):
+        self.model[-1].bias.uniform_(last_layer_bias, last_layer_bias+1)
     
     def forward(self, x):
         return self.model(x)
