@@ -24,7 +24,7 @@ def make_env(
     mx_reward: float = 1.0,
     gamma: float = 1.0,
 ):
-    base_env = gym.make(env_name)
+    base_env = gym.make(env_name, max_episode_steps=100)
     if flat_obs:
         base_env = TraditionalFlattenObservation(base_env)
     else:
