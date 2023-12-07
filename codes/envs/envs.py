@@ -44,7 +44,7 @@ def make_env(
 def produce_all_observations(env: CustomMinigridEnv, obs: np.ndarray) -> np.ndarray:
     """Produces all possible state observations of the given environment."""
     unwrapped = env.base_env.unwrapped
-    height, width = unwrapped.height, unwrapped.weight
+    height, width = unwrapped.height - 2, unwrapped.width - 2
     channels = 1 if height * width == obs.shape[0] else 3 
     
     n_observations = height * width
@@ -54,9 +54,9 @@ def produce_all_observations(env: CustomMinigridEnv, obs: np.ndarray) -> np.ndar
     idx = 1
     all_observations[0, :] = obs.copy()
     start_y, start_x = unwrapped.agent_pos
-    for y in range(1, height-1):
-        for x in range(1, width-1):
-            if y != start_y and x != start_x:
+    for y in range(1, height+1):
+        for x in range(1, width+1):
+            if y != start_y or x != start_x:
                 full_grid = unwrapped.grid.encode()
                 full_grid[y][x] = np.array([
                     OBJECT_TO_IDX["agent"],
@@ -65,7 +65,7 @@ def produce_all_observations(env: CustomMinigridEnv, obs: np.ndarray) -> np.ndar
                 ])
                 full_grid = full_grid[1:-1, 1:-1]
                 full_grid = full_grid.ravel()
-                all_observations[idx] = full_grid
+                all_observations[idx][:] = full_grid
                 idx += 1
 
     return all_observations

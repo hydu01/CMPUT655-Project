@@ -10,30 +10,40 @@ from torch import nn, optim
 
 from envs import make_env
 from metrics import Measurements
+from nns import EMLP, MLP, CNN, optimistic_init_mlp
 from utils import seed_everything, read_config, hash_env
 
 
 class Agent():
-    def __init__(self, q_net, lr, gamma, epsilon=0):
+    def __init__(self, q_net, lr, gamma, epsilon=0, use_cnn=False):
         self.q_net = q_net
         self.gamma = gamma
         self.epsilon = epsilon
+        self.use_cnn = use_cnn
         self.optimizer = optim.Adam(self.q_net.parameters(), lr=lr)
 
-    def get_action(self, state):
+    def __call__(self, state):
         if np.random.rand() < self.epsilon:
             return np.random.randint(0, 4)
         
         with torch.no_grad():
             qa = self.q_net(state)
 
-        action = qa.detach().cpu().argmax().item()
+        action = qa.detach().cpu()
         return action
     
     def update(self, state, action, reward, next_state, next_action, terminal):
-        target = reward + self.gamma * self.q_net(next_state)[next_action].detach() * (1-terminal)
-        q = self.q_net(state)[action]
-        loss = 1/2 * torch.square(target - q)
+        qs_next = self.q_net(next_state).detach()
+        if self.use_cnn:
+            qs_next = torch.squeeze(qs_next, dim=0)
+
+        target = reward + self.gamma * qs_next[next_action] * (1-terminal)
+
+        q = self.q_net(state)
+        if self.use_cnn:
+            q = torch.squeeze(q, dim=0)
+
+        loss = 1/2 * torch.square(target - q[action])
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -50,9 +60,20 @@ def parse_arguments():
     return args
 
 
-def format_observation(obs):
-    obs = obs.reshape((-1, 3))[:, 0].astype(np.float32)
-    obs /= obs.max()
+def format_observation(obs, use_cnn):
+    if use_cnn:
+        width = int(np.sqrt(obs.shape[0] // 3))
+        obs = obs.reshape((width, width, 3)).astype(np.float32)
+        mean = obs.mean(axis=(0, 1), keepdims=True)
+        std = obs.std(axis=(0, 1), keepdims=True)
+        obs = (obs - mean) / std
+        obs = np.transpose(obs, (2, 1, 0))
+        obs = np.expand_dims(obs, axis=0)
+    else:
+        obs = obs.reshape((-1, 3))[:, 0].astype(np.float32)
+        mean = obs.mean()
+        std = obs.std()
+        obs = (obs - mean) / std
     return obs
 
 
@@ -74,28 +95,39 @@ def run_single_config(config, save_dir):
                 )
     
     # Create model instance
-    q_function = nn.Sequential(
-        nn.Linear(env.base_env.observation_space.shape[0]//3, 100),
-        nn.ReLU(),
-        nn.Linear(100, 100),
-        nn.ReLU(),
-        nn.Linear(100, 4)
-    )
-    agent = Agent(q_function, config["lr"], config["gamma"], config["eps"])
+    if config["use_cnn"]:
+        obs_width = env.base_env.unwrapped.width - 2
+        channels = [3, 16, 32, 32]
+        hidden_dims = [100, 100]
+        out_dim = 4
+        q_function = CNN(obs_width, channels, hidden_dims, out_dim)
+    else:
+        dims = [env.base_env.observation_space.shape[0]//3, 100, 100, 4]
+        q_function = EMLP(dims)
+
+    agent = Agent(q_function, config["lr"], config["gamma"], config["eps"], config["use_cnn"])
 
     # Training algorithm
+    optimism = config["normalize_reward"]
     timestep_count = 0
     ep_count = 1
     width = env.base_env.unwrapped.width
     while True:
         # Initialize state
         obs, _ = env.reset(seed=config["seed"])
+        if timestep_count == 0 and optimism:
+            # Optimistically initialize the model
+            bias_term = optimistic_init_mlp(env, obs, agent, 3)
+            q_function = EMLP(dims, bias_term)
+            agent = Agent(q_function, config["lr"], config["gamma"], config["eps"], config["use_cnn"])
+            optimism = False
+
         cur_pos = env.base_env.unwrapped.agent_pos
-        obs = format_observation(obs)
+        obs = format_observation(obs, config["use_cnn"])
         obs = torch.Tensor(obs).to(config["device"])
         
         # Take action based on the current q_function
-        action = agent.get_action(obs)
+        action = agent(obs).argmax().item()
 
         is_done = False
         st_time = time.time()
@@ -103,14 +135,16 @@ def run_single_config(config, save_dir):
         while not is_done:
             # Step environment
             nxt_obs, reward, term, trunc, _ = env.step(action)
-            nxt_obs = format_observation(nxt_obs)
+            nxt_obs = format_observation(nxt_obs, config["use_cnn"])
             nxt_obs = torch.Tensor(nxt_obs).to(config["device"])
 
             # Update flag for the termination
             is_done = term or trunc
+            if config["penalize_death"] and reward == -1.0:
+                reward = config["gamma"]**(100 - timestep_count + prev_count + 1) - 1
 
             # Get action and update the model
-            nxt_action = agent.get_action(nxt_obs)
+            nxt_action = agent(nxt_obs).argmax().item()
             agent.update(obs, action, reward, nxt_obs, nxt_action, is_done)
 
             # Store measurements

@@ -95,7 +95,7 @@ class TraditionalFlattenObservation(gym.ObservationWrapper):
         full_grid[unwrapped.agent_pos[0]][unwrapped.agent_pos[1]] = np.array([
             OBJECT_TO_IDX["agent"],
             COLOR_TO_IDX["red"],
-            unwrapped.agent_dir,
+            unwrapped.agent_dir + 1,
         ])
         
         full_grid = full_grid[1:-1, 1:-1]
