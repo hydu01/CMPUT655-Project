@@ -1,8 +1,13 @@
+from collections import namedtuple
+import json
 import os
 import random
 
 import numpy as np
 import torch
+
+# from .envs import produce_all_observations
+# from .envs.custom_minigrid_wrappers import CustomMinigridEnv
 
 
 def seed_everything(seed: int = 42):
@@ -24,5 +29,16 @@ def seed_everything(seed: int = 42):
     torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+
+def read_config(path):
+    with open(path, 'r') as f:
+        configs = json.load(f)
+
+    return configs
+    
+
+def hash_env(cur_pos, width, bias=1):
+    return cur_pos[0] * width + cur_pos[1]
 
 

@@ -31,8 +31,6 @@ class CustomMinigridEnv(Env):
     ):
         return self.base_env.reset(seed=seed, options=options)
 
-        
-
     def step(self, action):
         self.adjust_direction(action)
         return self.base_env.step(self.forward)
@@ -111,6 +109,14 @@ class TabularObservation(gym.ObservationWrapper):
     def observation(self, observation):
         unwrapped = self.unwrapped
         return unwrapped.agent_pos
+    
+class AmplifyReward(gym.RewardWrapper):
+    def __init__(self, env: Env, c: float = 1.):
+        super().__init__(env)
+        self.c = c
+
+    def reward(self, reward: float) -> float:
+        return reward * self.c
     
 class NegativeRewardOnLava(gym.RewardWrapper):
     def __init__(self, env: Env, custom_reward: float = -1.):
