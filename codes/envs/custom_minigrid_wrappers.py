@@ -106,7 +106,7 @@ class TabularObservation(gym.ObservationWrapper):
     def __init__(self, env: Env):
         super().__init__(env)
     
-    def observation(self, observation):
+    def observation(self, _):
         unwrapped = self.unwrapped
         return unwrapped.agent_pos
     
