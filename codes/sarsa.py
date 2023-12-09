@@ -1,13 +1,14 @@
 from envs.envs import make_env
-from utils import seed_everything
+from utils import seed_everything, read_config
 import numpy as np
 import matplotlib.pyplot as plt
 import json
+import sys
 COLORS = ['blue', 'orange', 'green', 'red', 'purple', 'brown', 'yellow', 'grey', 'pink', 'orange']
 class Agent():
-    def __init__(self):
+    def __init__(self, epsilon = 0.0):
         self.q_values = {} # dictionary of q_values
-        self.epsilon = 0.01
+        self.epsilon = epsilon
     def set_q_value(self, state, action, q_value):
         q_values_array = self.q_values.get(state, [0,0,0,0])
         q_values_array[action] = q_value
@@ -27,22 +28,16 @@ class Agent():
                 == q_vals.max())) # break ties uniformly
             
 
-def experiment_run(env_names, run_seeds):
-    #------------ Configs ------------#
+def experiment_run(env_names, run_seeds, config):
     for env_name in env_names:
         run_returns = []
+        state_visitations = []
         for seed in run_seeds:
-            # Global configs
-            # seed = 20231124
-            # Environment configs
-            normalize_reward = True
-            PENALIZE_DEATH = False
             # Algorithm configs
-            num_episodes = 5000
-            LEARNING_RATE = 0.005
-            GAMMA = 0.9
+            total_steps = config["total_steps"]
+            LEARNING_RATE = config["lr"]
+            GAMMA = config["gamma"]
             state_values = {}
-
             #------------ Training ------------#
             # Set seed for everything
             seed_everything(seed)
@@ -50,30 +45,38 @@ def experiment_run(env_names, run_seeds):
             # Create the necessary components
             env = make_env(env_name,
                             flat_obs=False,
-                            penalize_death=PENALIZE_DEATH,
-                            normalize_reward=normalize_reward,
+                            penalize_death=config["penalize_death"],
+                            normalize_reward=config["normalize_reward"],
                             gamma=GAMMA
                         )
-            agent = Agent()
+            agent = Agent(config["eps"])
             avg_returns = []
             reward_accumulator = 0
-            episode_length = 1
             terminal = False
             truncate = False
+            once = True
+            state_visitation = {}
+            episodic_visitation = []
+            steps = 1
             # Train
-            for i in range(num_episodes):
+            while steps < total_steps:
                 obs, _ = env.reset(seed=seed)
                 obs = tuple(obs)
                 action = agent.policy_epsilon_greedy(obs)
+                last_episode_step = steps
                 truncate = False
                 while not terminal and not truncate: # truncate long episodes
                     next_obs, reward, terminal, truncate, _ = env.step(action)
+                    steps += 1
                     next_obs = tuple(next_obs)
+                    state_visitation[next_obs] = 1
+                    state_visitation[obs] = 1
                     if terminal:
-                        reward = GAMMA**(100 - episode_length + 1) - 1 if reward < 0 else reward
+                        reward = GAMMA**(100 - (steps - last_episode_step) + 1) - 1 if reward < 0 else reward
+                        if once:
+                            env.mx_reward = abs(reward)
+                            once = False
                         reward_accumulator = reward
-
-                    episode_length += 1
                     next_action = agent.policy_epsilon_greedy(next_obs)
                     q_value = agent.get_q_value(obs, action)
                     q_value += LEARNING_RATE * \
@@ -82,15 +85,16 @@ def experiment_run(env_names, run_seeds):
                         agent.get_q_value(obs, action))
                     # update in memory
                     agent.set_q_value(obs, action, q_value)
-                    state_values[obs] = sum(agent.get_state_q_values(obs))
+                    # state_values[obs] = sum(agent.get_state_q_values(obs))
                     obs = next_obs
                     action = next_action
-                print(f"episode {i+1} has completed. #Steps: {episode_length}")
+                print(f"episode has completed. #Steps: {steps - last_episode_step}")
                 avg_returns.append(reward_accumulator)
-                episode_length = 1
+                episodic_visitation.append(sum(state_visitation.values()) / ((env.width - 2) * (env.height-2)))
                 reward_accumulator = 0
                 terminal = False
             run_returns.append(avg_returns)
+            state_visitations.append(episodic_visitation)
             with open(f"../results/true_values/true_values-{env_name}-{seed}.json", "w") as outfile: 
                 json_compatible = {str(key):values for key, values in state_values.items()}
                 json.dump(json_compatible, outfile)
@@ -98,20 +102,26 @@ def experiment_run(env_names, run_seeds):
         plt.figure(figsize=(30,10))
         for index, run in enumerate(run_returns):
             plt.plot(run, color=COLORS[index])
-        plt.savefig(f"../results/returns-{env_name}\
-            -{'normalized' if normalize_reward else 'raw'}")
+        plt.savefig(f"../{config['base_save_dir']}/returns-{env_name}\
+            -{'normalized' if config['normalize_reward'] else 'raw'}")
+        plt.figure(figsize=(30,10))
+        for index, run in enumerate(state_visitations):
+            plt.plot(run, color=COLORS[index])
+        plt.savefig(f"../{config['base_save_dir']}/coverage-{env_name}\
+            -{'normalized' if config['normalize_reward'] else 'raw'}")
 
     
 
 
 if __name__ == "__main__":
-    environments = [
-                    "MiniGrid-Empty-Random-6x6-v0",
-                    "MiniGrid-DistShift1-v0", 
-                    "MiniGrid-LavaGapS5-v0"
-                    ]
-    base_seed = 55555
+    try:
+        config = read_config("../configs/" + sys.argv[1])
+    except:
+        print("Enter config filename")
+        sys.exit()
+    environments = [config["env_name"]]
+    base_seed = config["base_seed"]
     np.random.seed(base_seed)
-    number_of_seeds = 10
+    number_of_seeds = config["n_seeds"]
     seeds_for_sweep = [np.random.randint(10_000_000) for _ in range(number_of_seeds)]
-    experiment_run(environments, seeds_for_sweep)
+    experiment_run(environments, seeds_for_sweep, config)
