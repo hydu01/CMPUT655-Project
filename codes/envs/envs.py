@@ -58,7 +58,7 @@ def produce_all_observations(env: CustomMinigridEnv, obs: np.ndarray) -> np.ndar
         for x in range(1, width+1):
             if y != start_y or x != start_x:
                 full_grid = unwrapped.grid.encode()
-                full_grid[y][x] = np.array([
+                full_grid[x][y] = np.array([
                     OBJECT_TO_IDX["agent"],
                     COLOR_TO_IDX["red"],
                     unwrapped.agent_dir,
