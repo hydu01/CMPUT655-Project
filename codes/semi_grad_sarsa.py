@@ -179,6 +179,7 @@ if __name__ == "__main__":
     args = parse_arguments()
     config = read_config(args.path)
     config["device"] = torch.device(config["device"])
+    config["penalize_death"] = True if config["normalize_reward"] else config["penalize_death"]
 
     #------------ Training ------------#
     # Produce seeds for sweeping
