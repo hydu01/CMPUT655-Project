@@ -29,12 +29,12 @@ def make_env(
         base_env = TraditionalFlattenObservation(base_env)
     else:
         base_env = TabularObservation(base_env)
-    if penalize_death:
-        base_env = NegativeRewardOnLava(base_env)
     if reward_amplification:
         base_env = AmplifyReward(base_env, reward_amplification)
     if normalize_reward:
         base_env = NormalizeReward(base_env, mx_reward=mx_reward, gamma=gamma)
+    if penalize_death:
+        base_env = NegativeRewardOnLava(base_env)
 
     # Wrap with custom action sequences
     env = CustomMinigridEnv(base_env)

@@ -126,7 +126,7 @@ class NegativeRewardOnLava(gym.RewardWrapper):
     def reward(self, reward: float) -> float:
         # Condtiions rendered from https://github.com/Farama-Foundation/Minigrid/blob/4373191abc93d5df4054d7185692bd2951b7682b/minigrid/minigrid_env.py#L520
         unwrapped = self.env.unwrapped
-        fwd_cell = unwrapped.grid.get(*unwrapped.front_pos)
+        fwd_cell = unwrapped.grid.get(*unwrapped.agent_pos)
         if fwd_cell is not None and fwd_cell.type == "lava":
             return self.custom_reward
         else:
