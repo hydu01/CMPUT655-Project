@@ -115,6 +115,7 @@ def run_single_config(config, save_dir):
     timestep_count = 0
     ep_count = 1
     width = env.base_env.unwrapped.width
+    mx_steps = env.base_env.unwrapped.max_steps
     while True:
         # Initialize state
         obs, _ = env.reset(seed=config["seed"])
@@ -142,8 +143,8 @@ def run_single_config(config, save_dir):
 
             # Update flag for the termination
             is_done = term or trunc
-            if config["penalize_death"] and reward == -1.0:
-                reward = config["gamma"]**(100 - timestep_count + prev_count + 1) - 1
+            if config["normalize_reward"] and is_done and reward == -1.0:
+                reward = config["gamma"]**(mx_steps - timestep_count + prev_count + 1) - 1
 
             # Get action and update the model
             nxt_action = agent(nxt_obs).argmax().item()
