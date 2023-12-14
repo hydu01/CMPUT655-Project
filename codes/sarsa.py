@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import json
 import sys
+import itertools
+
 COLORS = ['blue', 'orange', 'green', 'red', 'purple', 'brown', 'yellow', 'grey', 'pink', 'orange']
 class Agent():
     def __init__(self, epsilon = 0.0):
@@ -31,6 +33,7 @@ class Agent():
 def experiment_run(env_names, run_seeds, config):
     for env_name in env_names:
         run_returns = []
+        steps_per_run = []
         state_visitations = []
         for seed in run_seeds:
             # Algorithm configs
@@ -57,6 +60,7 @@ def experiment_run(env_names, run_seeds, config):
             once = True
             state_visitation = {}
             episodic_visitation = []
+            run_steps = []
             steps = 1
             # Train
             while steps < total_steps:
@@ -90,25 +94,35 @@ def experiment_run(env_names, run_seeds, config):
                     action = next_action
                 print(f"episode has completed. #Steps: {steps - last_episode_step}")
                 avg_returns.append(reward_accumulator)
+                run_steps.append(steps - last_episode_step)
                 episodic_visitation.append(sum(state_visitation.values()) / ((env.width - 2) * (env.height-2)))
                 reward_accumulator = 0
                 terminal = False
             run_returns.append(avg_returns)
             state_visitations.append(episodic_visitation)
+            steps_per_run.append(run_steps)
             with open(f"../results/true_values/true_values-{env_name}-{seed}.json", "w") as outfile: 
                 json_compatible = {str(key):values for key, values in state_values.items()}
                 json.dump(json_compatible, outfile)
         print(f"Completed training on {env_name}")
         plt.figure(figsize=(30,10))
         for index, run in enumerate(run_returns):
-            plt.plot(run, color=COLORS[index])
+            cumulative_steps = list(itertools.accumulate(steps_per_run[index])) 
+            plt.plot(cumulative_steps, run, color=COLORS[index])
+        plt.xlabel('Steps')
+        plt.ylabel('Average Return')
         plt.savefig(f"../{config['base_save_dir']}/returns-{env_name}\
             -{'normalized' if config['normalize_reward'] else 'raw'}")
+
         plt.figure(figsize=(30,10))
         for index, run in enumerate(state_visitations):
-            plt.plot(run, color=COLORS[index])
+            cumulative_steps = list(itertools.accumulate(steps_per_run[index])) 
+            plt.plot(cumulative_steps, run, color=COLORS[index])
+        plt.xlabel('Steps')
+        plt.ylabel('Coverage')
         plt.savefig(f"../{config['base_save_dir']}/coverage-{env_name}\
             -{'normalized' if config['normalize_reward'] else 'raw'}")
+
 
     
 
