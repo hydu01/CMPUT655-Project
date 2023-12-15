@@ -36,8 +36,8 @@ def calculate_episodic_return(rewards, gamma):
 def experiment_run(env_name, run_seeds, config):
 
     all_run_returns = []
-    steps_per_run = []
     all_run_coverages = []
+    all_run_entropies = []
     for seed in run_seeds:
         # Algorithm configs
         total_episodes = config["total_episodes"]
@@ -59,6 +59,7 @@ def experiment_run(env_name, run_seeds, config):
         # run_coverage = []
         run_return = []
         run_coverage = []
+        episodic_entropies = []
         steps = 1
         # Train
         for _ in range(total_episodes):
@@ -73,8 +74,8 @@ def experiment_run(env_name, run_seeds, config):
                 next_obs, reward, terminal, truncate, _ = env.step(action)
                 steps += 1
                 next_obs = tuple(next_obs)
-                state_visitation[next_obs] = 1
-                state_visitation[obs] = 1
+                state_visitation[next_obs] = state_visitation.get(next_obs, 0) + 1  
+                state_visitation[obs] = state_visitation.get(obs, 0) + 1
                 episodic_rewards.append(reward)
                 next_action = agent.policy_epsilon_greedy(next_obs)
                 q_value = agent.get_q_value(obs, action)
@@ -84,19 +85,22 @@ def experiment_run(env_name, run_seeds, config):
                     agent.get_q_value(obs, action))
                 # update in memory
                 agent.set_q_value(obs, action, q_value)
-                # state_values[obs] = sum(agent.get_state_q_values(obs))
                 obs = next_obs
                 action = next_action
             print(f"episode has completed. #Steps: {steps}")
             # store results for each seed
             episodic_return = calculate_episodic_return(episodic_rewards, GAMMA)
-            episodic_coverage = (sum(state_visitation.values()) / ((env.width - 2) * (env.height-2)))
+            episodic_coverage = (sum([ count > 0 for count in state_visitation.values()]) 
+                                 / ((env.width - 2) * (env.height-2)))
+            total_visitations = sum(state_visitation.values())
+            state_entropies = [-c / total_visitations * np.log2(c / total_visitations) for c in state_visitation.values()]
+            episodic_entropies.append(sum(state_entropies))
             run_return.append(episodic_return)
             run_coverage.append(episodic_coverage)
-            
+        all_run_entropies.append(episodic_entropies)  
         all_run_returns.append(run_return)
         all_run_coverages.append(run_coverage)
-    experiment_data = {"coverage": all_run_coverages, "returns": all_run_returns}
+    experiment_data = {"coverage": all_run_coverages, "returns": all_run_returns, "entropies": all_run_entropies}
     df = pd.DataFrame(experiment_data)
     df.to_csv(f'../results/sarsa/{env_name}_sarsa_{config["normalize_reward"]}_{config["base_seed"]}.csv', index=False)
 

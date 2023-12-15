@@ -38,6 +38,21 @@ def plot_results(env, normalized_flag, base_seed):
     plt.ylabel('Returns')
     plt.savefig(f"../{config['base_save_dir']}/returns-{env}\
         -{'normalized' if config['normalize_reward'] else 'raw'}")
+    
+    # Plot entropy data
+    entropy_data = experiment_data["entropies"]
+    plt.figure(figsize=(30,10))
+    for index, run in enumerate(entropy_data):
+        plt.plot(run, color=COLORS[index], alpha=0.3)
+    # Plot average across 10 runs
+    entropy_data = np.array(entropy_data)
+    mean_returns = np.mean(entropy_data, axis=0)
+    plt.plot(mean_returns, "black", alpha=0.9, label="Average-Episodic-entropy-10-Runs")
+    plt.legend(fontsize='x-large')
+    plt.xlabel('Episode')
+    plt.ylabel('Entropy')
+    plt.savefig(f"../{config['base_save_dir']}/entropies-{env}\
+        -{'normalized' if config['normalize_reward'] else 'raw'}")
 
 if __name__ == "__main__":
     try:

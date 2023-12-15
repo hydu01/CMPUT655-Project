@@ -5,7 +5,7 @@
     "total_episodes": 1000,
     "env_name": "MiniGrid-Empty-6x6-v0",
     "flat_obs": false,
-    "normalize_reward": true,
+    "normalize_reward": false,
     "penalize_death": false,
     "mx_reward": 1.0,
     "gamma": 0.9,
