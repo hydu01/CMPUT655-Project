@@ -43,6 +43,7 @@ def experiment_run(env_name, run_seeds, config):
         total_episodes = config["total_episodes"]
         LEARNING_RATE = config["lr"]
         GAMMA = config["gamma"]
+        NORMALIZE = config["normalize_reward"]
         #------------ Training ------------#
         # Set seed for everything
         seed_everything(seed)
@@ -51,12 +52,11 @@ def experiment_run(env_name, run_seeds, config):
         env = make_env(env_name,
                         flat_obs=False,
                         penalize_death=config["penalize_death"],
-                        normalize_reward=config["normalize_reward"],
+                        normalize_reward=NORMALIZE,
                         gamma=GAMMA
                     )
         agent = Agent(config["eps"])
         state_visitation = {}
-        # run_coverage = []
         run_return = []
         run_coverage = []
         episodic_entropies = []
@@ -72,6 +72,8 @@ def experiment_run(env_name, run_seeds, config):
             episodic_rewards = []
             while not terminal and not truncate: # truncate long episodes
                 next_obs, reward, terminal, truncate, _ = env.step(action)
+                if terminal and reward < 0 and NORMALIZE:
+                    reward = GAMMA**(env.max_steps - steps + 1) - 1
                 steps += 1
                 next_obs = tuple(next_obs)
                 state_visitation[next_obs] = state_visitation.get(next_obs, 0) + 1  

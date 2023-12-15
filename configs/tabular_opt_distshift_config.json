@@ -3,14 +3,14 @@
     "base_seed": 42,
     "device": "cpu",
     "total_episodes": 1000,
-    "env_name": "MiniGrid-Empty-6x6-v0",
+    "env_name": "MiniGrid-DistShift1-v0",
     "flat_obs": false,
-    "normalize_reward": false,
-    "penalize_death": false,
+    "normalize_reward": true,
+    "penalize_death": true,
     "mx_reward": 1.0,
     "gamma": 0.9,
     "eps": 0.0,
     "n_seeds": 10,
     "verbose": 100,
-    "lr": 0.005
+    "lr": 0.01
 }
