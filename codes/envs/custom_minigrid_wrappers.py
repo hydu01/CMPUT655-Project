@@ -11,8 +11,8 @@ class CustomMinigridEnv(Env):
     def __init__(self, base_env: Env):
         super().__init__()
         self.base_env = base_env
-        self.width = base_env.width
-        self.height = base_env.height
+        self.height = self.base_env.height
+        self.width = self.base_env.width
         # Action indices
         self.right = 0
         self.down = 1
@@ -96,7 +96,7 @@ class TraditionalFlattenObservation(gym.ObservationWrapper):
         full_grid[unwrapped.agent_pos[0]][unwrapped.agent_pos[1]] = np.array([
             OBJECT_TO_IDX["agent"],
             COLOR_TO_IDX["red"],
-            unwrapped.agent_dir,
+            unwrapped.agent_dir + 1,
         ])
         
         full_grid = full_grid[1:-1, 1:-1]
@@ -107,7 +107,7 @@ class TabularObservation(gym.ObservationWrapper):
     def __init__(self, env: Env):
         super().__init__(env)
     
-    def observation(self, _):
+    def observation(self, observation):
         unwrapped = self.unwrapped
         return unwrapped.agent_pos
     
@@ -127,7 +127,7 @@ class NegativeRewardOnLava(gym.RewardWrapper):
     def reward(self, reward: float) -> float:
         # Condtiions rendered from https://github.com/Farama-Foundation/Minigrid/blob/4373191abc93d5df4054d7185692bd2951b7682b/minigrid/minigrid_env.py#L520
         unwrapped = self.env.unwrapped
-        fwd_cell = unwrapped.grid.get(*unwrapped.front_pos)
+        fwd_cell = unwrapped.grid.get(*unwrapped.agent_pos)
         if fwd_cell is not None and fwd_cell.type == "lava":
             return self.custom_reward
         else:
