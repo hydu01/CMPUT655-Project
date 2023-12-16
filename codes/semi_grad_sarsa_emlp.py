@@ -140,7 +140,7 @@ def run_single_config(config, save_dir):
         obs, _ = env.reset(seed=config["seed"])
         if i == 0 and normalize:
             # Optimistically initialize the model
-            bias_term = optimistic_init_mlp(env, obs, agent, 3)
+            bias_term = optimistic_init_mlp(env, obs, agent, 1)
             q_function.set_last_layer_bias(bias_term)
 
         cur_pos = env.base_env.unwrapped.agent_pos
