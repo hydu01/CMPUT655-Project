@@ -1,0 +1,18 @@
+{
+    "base_save_dir": "normalized_mlp_distshift_100_one_dummy",
+    "base_seed": 42,
+    "device": "cpu",
+    "model_type": "mlp",
+    "total_steps": 1000,
+    "env_name": "MiniGrid-DistShift1-v0",
+    "flat_obs": true,
+    "normalize_reward": true,
+    "reward_amplification": 1.0,
+    "penalize_death": true,
+    "mx_reward": 1.0,
+    "gamma": 0.9,
+    "eps": 0.1,
+    "n_seeds": 3,
+    "verbose": 10,
+    "lr": [0.0005]
+}
