@@ -11,7 +11,9 @@ class CustomMinigridEnv(Env):
     def __init__(self, base_env: Env):
         super().__init__()
         self.base_env = base_env
-        
+        self.max_steps = base_env.unwrapped.max_steps
+        self.height = self.base_env.unwrapped.height
+        self.width = self.base_env.unwrapped.width
         # Action indices
         self.right = 0
         self.down = 1
