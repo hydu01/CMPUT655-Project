@@ -1,0 +1,18 @@
+{
+    "base_save_dir": "mlp_lavagap_1000_one",
+    "base_seed": 42,
+    "device": "cpu",
+    "model_type": "mlp",
+    "total_steps": 1000,
+    "env_name": "MiniGrid-LavaGapS6-v0",
+    "flat_obs": true,
+    "normalize_reward": false,
+    "reward_amplification": 1.0,
+    "penalize_death": false,
+    "mx_reward": 1.0,
+    "gamma": 0.9,
+    "eps": 0,
+    "n_seeds": 10,
+    "verbose": 0,
+    "lr": [0.0001]
+}

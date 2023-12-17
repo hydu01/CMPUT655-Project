@@ -7,13 +7,14 @@ from matplotlib import pyplot as plt
 import numpy as np
 import torch
 from torch import nn, optim
-from tqdm import tqdm
 
 from envs import make_env
 from metrics import Measurements
 from nns import EMLP, MLP, CNN, optimistic_init_mlp
 from utils import seed_everything, read_config, hash_env
 
+num_episode = 1000
+runs = []
 
 class Agent():
     def __init__(self, q_net, lr, gamma, epsilon=0, model_type="mlp"):
@@ -24,13 +25,24 @@ class Agent():
         self.optimizer = optim.Adam(self.q_net.parameters(), lr=lr)
 
     def __call__(self, state):
-        if np.random.rand() < self.epsilon:
-            return np.random.randint(0, 4)
+        # if np.random.rand() < self.epsilon:
+        #     action 
+        #     return torch.randint(0, 4, (1,))
         
         with torch.no_grad():
             qa = self.q_net(state)
 
         action = qa.detach().cpu()
+        return action
+    
+    def get_action(self, state):
+        if np.random.rand() < self.epsilon:
+            return np.random.randint(0, 4)
+        
+        with torch.no_grad():
+            qa = self.q_net(state)
+        
+        action = qa.detach().cpu().argmax().item()
         return action
     
     def update(self, state, action, reward, next_state, next_action, terminal):
@@ -78,27 +90,12 @@ def format_observation(obs, model_type):
     return obs
 
 
-def coverage(state_counts):
-    return np.sum(state_counts > 0) / len(state_counts)
-
-
-def entropy(state_counts):
-    tot = np.sum(state_counts)
-    p = state_counts / tot
-    p *= np.log(p + 1e-10)
-    return -np.sum(p)
-
-
-def hash_state(cur_pos, height):
-    return (cur_pos[1] - 1) * (height - 2) + cur_pos[0] - 1
-    
-
 def run_single_config(config, save_dir):
     # Set a seed
     seed_everything(config["seed"])
 
     # Create logging class
-    # measurements = Measurements()
+    #measurements = Measurements()
 
     # Create environment instance
     env = make_env(config["env_name"],
@@ -127,75 +124,106 @@ def run_single_config(config, save_dir):
     agent = Agent(q_function, config["lr"], config["gamma"], config["eps"], config["model_type"])
 
     # Training algorithm
-    optimism = config["normalize_reward"]
+    normalize = config["normalize_reward"]
     timestep_count = 0
     ep_count = 1
-    final_result = np.zeros((config["total_steps"], 4))   # each row corresponds to coverage, return, entropy
-    width = env.base_env.unwrapped.width
-    heigth = env.base_env.unwrapped.height
-    state_counts = np.zeros((width-2) * (heigth-2))
+    width = env.base_env.unwrapped.width -2
+    height = env.base_env.unwrapped.height -2
+    num_state = width * height
     mx_steps = env.base_env.unwrapped.max_steps
-    for i in tqdm(range(config["total_steps"])):
+
+    state_visitation = np.zeros((num_episode, height*width))
+    stats = np.zeros((num_episode, 3))
+
+    for i in range(num_episode):
         # Initialize state
         obs, _ = env.reset(seed=config["seed"])
-        if i == 0 and optimism:
+        if i == 0 and normalize:
             # Optimistically initialize the model
             bias_term = optimistic_init_mlp(env, obs, agent, 1)
             q_function.set_last_layer_bias(bias_term)
-            optimism = False
 
         cur_pos = env.base_env.unwrapped.agent_pos
-        state_counts[hash_state(cur_pos, heigth)] += 1
         obs = format_observation(obs, config["model_type"])
         obs = torch.Tensor(obs).to(config["device"])
+        key = hash_env(cur_pos, width)
+        state_visitation[i,key] += 1
+        
         
         # Take action based on the current q_function
-        action = agent(obs)
-        if not isinstance(action, int):
-            action = action.argmax().item()
+        action = agent.get_action(obs)
+        step = 0
+        actions = [action]
+
+        ep_return = 0
 
         is_done = False
         st_time = time.time()
-        cnt = 0
-        cum_reward = 0
-        g = 1
+        prev_count = timestep_count
+        die = False
         while not is_done:
             # Step environment
             nxt_obs, reward, term, trunc, _ = env.step(action)
-            cnt += 1
             nxt_obs = format_observation(nxt_obs, config["model_type"])
             nxt_obs = torch.Tensor(nxt_obs).to(config["device"])
 
             # Update flag for the termination
             is_done = term or trunc
-            if config["normalize_reward"] and term and reward < 0.0:
-                reward = config["gamma"]**(mx_steps - cnt + 1) - 1
+            if config["normalize_reward"] and is_done and reward == -1.0:
+                die = True
+                reward = config["gamma"]**(mx_steps - timestep_count + prev_count + 1) - 1
 
             # Get action and update the model
-            nxt_action = agent(nxt_obs)
-            if not isinstance(nxt_action, int):
-                nxt_action = nxt_action.argmax().item()
+            nxt_action = agent.get_action(nxt_obs)
+            actions.append(nxt_action)
             agent.update(obs, action, reward, nxt_obs, nxt_action, is_done)
 
+            ep_return += (config["gamma"]**step) * reward
+
+            # Store measurements
+            #measurements.add_measurements(hash_env(cur_pos, width),
+            #                              action,
+            #                              reward,
+            #                              timestep_count if is_done else None)
+            
             # Update trackers
             obs = nxt_obs
             cur_pos = env.base_env.unwrapped.agent_pos
             action = nxt_action
 
-            cum_reward += reward * g
-            g *= config["gamma"]
-            state_counts[hash_state(cur_pos, heigth)] += 1
+            key = hash_env(cur_pos, width)
+            state_visitation[i,key] += 1
+
+            step += 1
+
+            timestep_count += 1
         
-        if config["verbose"] > 0 and i % config["verbose"] == 0:
-            print(f"Episode {i} is done in {cnt} steps, {time.time() - st_time:.2f} secs, {reward}")
-            
-        final_result[i, 0] = coverage(state_counts)
-        final_result[i, 1] = cum_reward / cnt
-        final_result[i, 2] = entropy(state_counts)
-        final_result[i, 3] = reward
+        stats[i,1] = ep_return
+        cumulated_visits = np.sum(state_visitation[0:i+1,:], axis=0)
+        mask = cumulated_visits!=0
+        stats[i,0] = np.sum(cumulated_visits!=0) / num_state
+        total_visits = np.sum(state_visitation)
+        p = cumulated_visits / total_visits
+        log_p = np.log2(p, out=np.zeros_like(p), where=(p!=0)) * mask
+        stats[i,2] = -np.sum(p * log_p)
         
+        if config["verbose"] > 0 and ep_count % config["verbose"] == 0:
+            #print(actions)
+            print(f"Episode {ep_count} is done in {timestep_count - prev_count} steps, {time.time() - st_time:.2f} secs")
+            #print(timestep_count)
+            #if die == False and trunc == False:
+            #    print("finished")
+            if (timestep_count - prev_count) == 144:
+                print(actions)
+        ep_count += 1
+
+        if timestep_count >= config["total_steps"]:
+            break
+
     # Save everything
-    np.save(f"{save_dir}/{config['env_name']}_{config['model_type']}_{config['normalize_reward']}_{config['seed']}.npy", final_result)
+    #measurements.save_everything(save_dir)
+
+    return state_visitation, stats
 
 
 if __name__ == "__main__":
@@ -203,7 +231,6 @@ if __name__ == "__main__":
     args = parse_arguments()
     config = read_config(args.path)
     config["device"] = torch.device(config["device"])
-    config["penalize_death"] = True if config["normalize_reward"] else config["penalize_death"]
 
     #------------ Training ------------#
     # Produce seeds for sweeping
@@ -224,21 +251,50 @@ if __name__ == "__main__":
     lrs = copy.deepcopy(config["lr"])
     run_cnt = 1
     run_start_time = time.time()
+    c = 0
     for lr in lrs:
         for seed in seeds_for_sweep:
             # Overwrite the config
             config["lr"] = lr
             config["seed"] = seed
 
-            # save_dir = base_dir + f"/lr_{lr}_seed_{seed}"       # CHANGE THIS ACCORDING TO YOUR SWEEPING VARIABLES
-            save_dir = base_dir
+            save_dir = base_dir + f"/lr_{lr}_seed_{seed}"       # CHANGE THIS ACCORDING TO YOUR SWEEPING VARIABLES
             if not os.path.isdir(save_dir):
                 os.mkdir(save_dir)
 
             # Start timer
-            run_single_config(config, save_dir)
+            state_visitation, stats = run_single_config(config, save_dir)
+            np.save(config["env_name"]+"_"+config["model_type"]+"_"+str(config["normalize_reward"])+"_"+str(c)+".npy", stats)
+            #np.save(config["env_name"]+"_"+config["model_type"]+"_"+str(config["normalize_reward"])+"_"+"state"+"_"+str(c)+".npy", state_visitation)
+            runs.append(stats)
+
             runtime = time.time() - run_start_time
+            c += 1
             
     mins = int(runtime) // 60
     secs = runtime - (mins * 60)
     print(f"Run {run_cnt} : {mins} mins {secs:.2f} secs")
+
+    for i in range(len(runs)):
+        stats = runs[i]
+        plt.plot(np.arange(num_episode), stats[:,1])
+    plt.title("returns")
+    #plt.savefig("./images/"+config["env_name"]+"_"+config["model_type"]+"_"+str(config["normalize_reward"])+"_"+"returns"+".pdf")
+    plt.show()
+
+    for i in range(len(runs)):
+        stats = runs[i]
+        plt.plot(np.arange(num_episode), stats[:,0])
+    plt.title("coverage")
+    #plt.savefig("./images/"+config["env_name"]+"_"+config["model_type"]+"_"+str(config["normalize_reward"])+"_"+"coverage"+".pdf")
+    plt.show()
+
+    for i in range(len(runs)):
+        stats = runs[i]
+        plt.plot(np.arange(num_episode), stats[:,2])
+    plt.title("entropy")
+    #plt.savefig("./images/"+config["env_name"]+"_"+config["model_type"]+"_"+str(config["normalize_reward"])+"_"+"entropy"+".pdf")
+    plt.show()
+
+    #for i in range
+    
