@@ -48,16 +48,16 @@ def plot_all_rewards(base_dir, parameters, save_path):
         results.append(np.load(f))
         # mn = min(results[-1].shape[0], mn)
 
-    plt.title("Reward of all seeds for Semi-grad SARSA with optimistic initialization")
+    plt.title("Reward of all seeds for Semi-grad SARSA without optimistic initialization")
     plt.figure(figsize=(8, 6))
     plt.title("Rewards of all seeds")
     for i in range(len(results)):
-        # results[i] = results[i][:mn]
+        # results[i] = results[i][:mn]s
         plt.plot(eps[i], results[i][eps[i]], alpha=0.3)
 
     plt.xlabel("Episodes")
     plt.ylabel("Episodic reward")
-    plt.ylim(0.0, 1.0)
+    # plt.ylim(0.0, 1.0)
     plt.savefig(save_path)
     plt.clf()
 
@@ -95,7 +95,7 @@ def plot_avg_rewards(base_dir, parameters, save_path):
     plt.fill_between(range(mn_len), avg_rewards - ci_rewards, avg_rewards + ci_rewards, alpha=0.1)
     plt.xlabel("Steps")
     plt.ylabel("Episodic Reward")
-    plt.ylim(0.0, 1.0)
+    # plt.ylim(0.0, 1.0)
     plt.savefig(save_path)
     plt.clf()
 
@@ -111,13 +111,13 @@ def plot_all_incremental_coverage(base_dir, parameters, width, save_path):
         coverage.append(incremental_coverage(np.load(f), total_grids) * total_grids / active_grids)
     
     plt.figure(figsize=(8, 6))
-    plt.title("Coverage of all seeds for Semi-grad SARSA with optimistic initialization")
+    plt.title("Coverage of all seeds for Semi-grad SARSA without optimistic initialization")
     for c in coverage:
         plt.plot(c, alpha=0.6)
     
     plt.xlabel("Steps")
     plt.ylabel("Coverage")
-    plt.ylim(0.0, 1.0)
+    # plt.ylim(0.0, 1.0)
     plt.savefig(save_path)
     plt.clf()
 
@@ -149,7 +149,7 @@ def plot_avg_incremental_coverage(base_dir, parameters, width, save_path):
 
     plt.plot(avg_coverage)
     plt.fill_between(range(mn_len), avg_coverage - ci_coverage, avg_coverage + ci_coverage, alpha=0.1)
-    plt.ylim(0.0, 1.0)
+    # plt.ylim(0.0, 1.0)
     plt.xlabel("Steps")
     plt.ylabel("Coverage")
     plt.savefig(save_path)
@@ -157,12 +157,12 @@ def plot_avg_incremental_coverage(base_dir, parameters, width, save_path):
 
 
 if __name__ == "__main__":
-    base_name = "normalized_semi_grad_sarsa_empty_6x6"
+    base_name = "mlp_distshift"
     base_dir = f"../../results/{base_name}/"
     params = {"lr": 0.0005}
     coverage_plots = f"../../imgs/{base_name}_coverage.png"
     reward_plots = f"../../imgs/{base_name}_rewards.png"
-    plot_all_incremental_coverage(base_dir, params, 6, coverage_plots)
+    plot_all_incremental_coverage(base_dir, params, 9, coverage_plots)
     plot_all_rewards(base_dir, params, reward_plots)
     # plot_avg_rewards(base_dir, params, reward_plots)
     # plot_avg_incremental_coverage(base_dir, params, 6, coverage_plots)

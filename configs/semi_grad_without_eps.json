@@ -1,9 +1,9 @@
 {
-    "base_save_dir": "results/ordinary_semi_grad_sarsa_empty_6x6_emlp",
+    "base_save_dir": "mlp_empty_1000_one",
     "base_seed": 42,
     "device": "cpu",
     "model_type": "mlp",
-    "total_steps": 10000,
+    "total_steps": 1000,
     "env_name": "MiniGrid-Empty-6x6-v0",
     "flat_obs": true,
     "normalize_reward": false,
@@ -12,7 +12,7 @@
     "mx_reward": 1.0,
     "gamma": 0.9,
     "eps": 0,
-    "n_seeds": 5,
-    "verbose": 100,
+    "n_seeds": 10,
+    "verbose": 0,
     "lr": [0.0005]
 }

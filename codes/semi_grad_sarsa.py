@@ -7,6 +7,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import torch
 from torch import nn, optim
+from tqdm import tqdm
 
 from envs import make_env
 from metrics import Measurements
@@ -77,12 +78,27 @@ def format_observation(obs, model_type):
     return obs
 
 
+def coverage(state_counts):
+    return np.sum(state_counts > 0) / len(state_counts)
+
+
+def entropy(state_counts):
+    tot = np.sum(state_counts)
+    p = state_counts / tot
+    p *= np.log(p + 1e-10)
+    return -np.sum(p)
+
+
+def hash_state(cur_pos, height):
+    return (cur_pos[1] - 1) * (height - 2) + cur_pos[0] - 1
+    
+
 def run_single_config(config, save_dir):
     # Set a seed
     seed_everything(config["seed"])
 
     # Create logging class
-    measurements = Measurements()
+    # measurements = Measurements()
 
     # Create environment instance
     env = make_env(config["env_name"],
@@ -114,64 +130,72 @@ def run_single_config(config, save_dir):
     optimism = config["normalize_reward"]
     timestep_count = 0
     ep_count = 1
+    final_result = np.zeros((config["total_steps"], 4))   # each row corresponds to coverage, return, entropy
     width = env.base_env.unwrapped.width
+    heigth = env.base_env.unwrapped.height
+    state_counts = np.zeros((width-2) * (heigth-2))
     mx_steps = env.base_env.unwrapped.max_steps
-    while True:
+    for i in tqdm(range(config["total_steps"])):
         # Initialize state
         obs, _ = env.reset(seed=config["seed"])
-        if timestep_count == 0 and optimism:
+        if i == 0 and optimism:
             # Optimistically initialize the model
-            bias_term = optimistic_init_mlp(env, obs, agent, 3)
+            bias_term = optimistic_init_mlp(env, obs, agent, 1)
             q_function.set_last_layer_bias(bias_term)
             optimism = False
 
         cur_pos = env.base_env.unwrapped.agent_pos
+        state_counts[hash_state(cur_pos, heigth)] += 1
         obs = format_observation(obs, config["model_type"])
         obs = torch.Tensor(obs).to(config["device"])
         
         # Take action based on the current q_function
-        action = agent(obs).argmax().item()
+        action = agent(obs)
+        if not isinstance(action, int):
+            action = action.argmax().item()
 
         is_done = False
         st_time = time.time()
-        prev_count = timestep_count
+        cnt = 0
+        cum_reward = 0
+        g = 1
         while not is_done:
             # Step environment
             nxt_obs, reward, term, trunc, _ = env.step(action)
+            cnt += 1
             nxt_obs = format_observation(nxt_obs, config["model_type"])
             nxt_obs = torch.Tensor(nxt_obs).to(config["device"])
 
             # Update flag for the termination
             is_done = term or trunc
-            if config["normalize_reward"] and is_done and reward == -1.0:
-                reward = config["gamma"]**(mx_steps - timestep_count + prev_count + 1) - 1
+            if config["normalize_reward"] and term and reward < 0.0:
+                reward = config["gamma"]**(mx_steps - cnt + 1) - 1
 
             # Get action and update the model
-            nxt_action = agent(nxt_obs).argmax().item()
+            nxt_action = agent(nxt_obs)
+            if not isinstance(nxt_action, int):
+                nxt_action = nxt_action.argmax().item()
             agent.update(obs, action, reward, nxt_obs, nxt_action, is_done)
-
-            # Store measurements
-            measurements.add_measurements(hash_env(cur_pos, width),
-                                          action,
-                                          reward,
-                                          timestep_count if is_done else None)
 
             # Update trackers
             obs = nxt_obs
             cur_pos = env.base_env.unwrapped.agent_pos
             action = nxt_action
 
-            timestep_count += 1
+            cum_reward += reward * g
+            g *= config["gamma"]
+            state_counts[hash_state(cur_pos, heigth)] += 1
         
-        if config["verbose"] > 0 and ep_count % config["verbose"] == 0:
-            print(f"Episode {ep_count} is done in {timestep_count - prev_count} steps, {time.time() - st_time:.2f} secs")
-        ep_count += 1
-
-        if timestep_count >= config["total_steps"]:
-            break
-    
+        if config["verbose"] > 0 and i % config["verbose"] == 0:
+            print(f"Episode {i} is done in {cnt} steps, {time.time() - st_time:.2f} secs, {reward}")
+            
+        final_result[i, 0] = coverage(state_counts)
+        final_result[i, 1] = cum_reward / cnt
+        final_result[i, 2] = entropy(state_counts)
+        final_result[i, 3] = reward
+        
     # Save everything
-    measurements.save_everything(save_dir)
+    np.save(f"{save_dir}/{config['env_name']}_{config['model_type']}_{config['normalize_reward']}_{config['seed']}.npy", final_result)
 
 
 if __name__ == "__main__":
@@ -206,7 +230,8 @@ if __name__ == "__main__":
             config["lr"] = lr
             config["seed"] = seed
 
-            save_dir = base_dir + f"/lr_{lr}_seed_{seed}"       # CHANGE THIS ACCORDING TO YOUR SWEEPING VARIABLES
+            # save_dir = base_dir + f"/lr_{lr}_seed_{seed}"       # CHANGE THIS ACCORDING TO YOUR SWEEPING VARIABLES
+            save_dir = base_dir
             if not os.path.isdir(save_dir):
                 os.mkdir(save_dir)
 
