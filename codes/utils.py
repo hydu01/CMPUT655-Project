@@ -39,6 +39,7 @@ def read_config(path):
     
 
 def hash_env(cur_pos, width, bias=1):
-    return cur_pos[0] * width + cur_pos[1]
+    # width is the active/effective width within which the agent can move
+    return (cur_pos[1]-1) * width + (cur_pos[0]-1)
 
 
