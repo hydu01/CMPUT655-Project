@@ -24,7 +24,7 @@ If you do not have `poetry.lock` file and would like to run a container,
 run a `poetry install` locally to generate a lock file. 
 
 ## Run the experiments
-**Please run all the commands inside the `codes/` directory**
+### NOTE: Please run all the commands inside the `codes/` directory
 ### SARSA
 The experiments can be conducted by running a following command:
 ```
