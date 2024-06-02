@@ -1,4 +1,5 @@
 # Optimistic Initialization of Non-linear Parameterized Value Functions
+Link to [paper](https://github.com/hydu01/CMPUT655-Project/blob/main/project_report.pdf)
 
 ## Prerequisites
 - Python >= 3.9.0,<3.11
